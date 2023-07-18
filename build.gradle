@@ -1,5 +1,8 @@
 plugins {
     id 'java'
+    id 'com.github.johnrengelman.shadow' version '7.1.2'
+    id 'net.minecrell.plugin-yml.bukkit' version '0.5.3'
+    id 'maven-publish'
 }
 
 group 'dev.selena.overstack'
@@ -7,13 +10,75 @@ version '1.0-SNAPSHOT'
 
 repositories {
     mavenCentral()
+    mavenLocal()
+//    maven {
+//        url = "https://hub.spigotmc.org/nexus/content/repositories/public/"
+//    }
+    maven {
+        url = "https://repo.jadeisacutie.com/releases"
+    }
 }
 
 dependencies {
-    testImplementation 'org.junit.jupiter:junit-jupiter-api:5.8.1'
-    testRuntimeOnly 'org.junit.jupiter:junit-jupiter-engine:5.8.1'
+    compileOnly("org.spigotmc:spigot-api:1.8.8-R0.1-SNAPSHOT")
+    compileOnly("org.spigotmc:spigot:1.8.8-R0.1-SNAPSHOT")
+    implementation 'dev.selena.glitchmc:GlitchAPI:1.0.6'
 }
 
-test {
-    useJUnitPlatform()
+
+build {
+    dependsOn shadowJar
+}
+
+shadowJar {
+
+    dependsOn(jar)
+    if (System.getenv("BUILD_NUMBER") == null) {
+        archiveName = rootProject.name + "-" + version + ".jar"
+    } else {
+        archiveName = rootProject.name + "-" + version + "-b" + System.getenv("BUILD_NUMBER") + ".jar"
+    }
+
+    dependencies {
+        include(dependency('dev.selena.glitchmc:GlitchAPI'))
+    }
+
+    zip64 true
+    subprojects.each { subproject ->
+        from subproject.sourceSets.main.output.classesDirs
+        from subproject.sourceSets.main.output.resourcesDir
+    }
+
+
+    configurations = [project.configurations.getByName("runtimeClasspath")]
+
+}
+
+bukkit {
+    main = "dev.selena.overstack.CannonCore"
+    authors = ["Selena", "OverStackMC"]
+}
+
+
+publishing {
+
+    repositories {
+        maven {
+            name = "OverStackMC"
+            url = "https://repo.jadeisacutie.com/releases"
+            credentials(PasswordCredentials)
+            authentication {
+                basic(BasicAuthentication)
+            }
+        }
+    }
+    publications {
+        maven(MavenPublication) {
+            from components.java
+            groupId = group
+            artifactId = rootProject.name
+            version = version
+
+        }
+    }
 }
